@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.10)
 #
 #   - dictates the output executable filename
 #
-project(TestApp)
+project(PourHonor)
 
 # Options you can set via command-line
 option(HAS_TERMINAL "Show a terminal window for STDOUT/STDERR" ON)
