@@ -8,6 +8,10 @@ Quick predictions! Your ratings depend on it!
 ## Controls
 (Information pending)
 
+## License
+Assets are All Rights Reserved.
+MIT for code.
+
 ## Uses the PGE Template Project
 
 This is a template project for use with the [olcPixelGameEngine](https://github.com/OneLoneCoder/olcPixelGameEngine). It serves as a jumping off point for you to build your masterpiece application.
