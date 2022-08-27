@@ -1,8 +1,16 @@
-# PGE Template Project
+# Pour Honor
+
+You're a weatherman, and your job is to make weather predictions.
+Quick predictions! Your ratings depend on it!
+
+## Controls
+(Information pending)
+
+## Uses the PGE Template Project
 
 This is a template project for use with the [olcPixelGameEngine](https://github.com/OneLoneCoder/olcPixelGameEngine). It serves as a jumping off point for you to build your masterpiece application.
 
-## Features
+#### Features
 
 CMake script for cross-platform building. Tested environments include:
 
@@ -11,13 +19,13 @@ CMake script for cross-platform building. Tested environments include:
 * Windows - with Visual Studio, NMake Makefiles, and MinGW Makefiles
 * Emscripten - with UNIX Makefiles, NMake Makefiles, and MinGW Makefiles
 
-# Preparing your Environment
+## Preparing your Environment
 
 The instructions to prepare your environment have been broken up for convenience. Simply follow the instructions that are pertinent to your situation.
 
-## Linux
+#### Linux
 
-### **Requirements**
+###### **Requirements**
 
 * C/C++ Toolchain for your Linux distro
 * CMake
@@ -26,7 +34,7 @@ The instructions to prepare your environment have been broken up for convenience
 * Mesa OpenGL Development Libraries
 * PulseAudio development Libraries
 
-### **Ubuntu and Ubuntu based distros**
+###### **Ubuntu and Ubuntu based distros**
 
 Update your package manager by issuing the following command:
 
@@ -40,15 +48,15 @@ Install toolchain and required software by issuing the following command:
 sudo apt install build-essential cmake git libpng-dev libglu1-mesa-dev libpulse-dev
 ```
 
-### **Arch, Manjaro, and Arch based distros**
+###### **Arch, Manjaro, and Arch based distros**
 
 ```
 sudo pacman -Sy base-devel cmake git libpng mesa libpulse
 ```
 
-## MacOS
+#### MacOS
 
-### **Requirements**
+###### **Requirements**
 
 * XCode
 * [Homebrew Package Manager](https://brew.sh/)
@@ -69,9 +77,9 @@ Once Homebrew is installed, issue the following command to install ``cmake``,``l
 brew install libpng cmake git
 ```
 
-## Windows
+#### Windows
 
-### Requirements
+###### Requirements
 
 * Chocolatey
 * CMake
@@ -99,22 +107,22 @@ cmake --version
 
 If you recieve an ``command not found`` error double check that you have actually added CMake to your path.
 
-## MinGW
+#### MinGW
 
 Install MinGW via ``choco install mingw`` from Powershell as Administrator
 
 
-## Visual Studio / NMake
+#### Visual Studio / NMake
 
 Download and install [Visual Studio: Community Edition](https://visualstudio.microsoft.com/downloads/).
 
 Ensure that you have installed the Desktop C++ option!
 
-# **Usage**
+## **Usage**
 
 IF YOU HAVE MADE IT HERE AND YOU HAVE NOT SET UP YOUR DEVELOPMENT ENVIRONMENT, GO BACK UP AND READ THE INSTRUCTIONS AGAIN!
 
-## Linux / MacOS (with default toolchains)
+#### Linux / MacOS (with default toolchains)
 
 Open a Terminal and navigate to the directory which you downloaded the project. Issue the following command:
 
@@ -130,7 +138,7 @@ make
 
 The compiled binary will be located in ``bin`` directory.
 
-## Linux / MacOS (Emscripten)
+#### Linux / MacOS (Emscripten)
 
 **These instructions assume you have Emscripten installed, activated, and have the environment set up for an active Terminal.**
 
@@ -156,7 +164,7 @@ emrun bin/PROJECTNAME.html
 
 This command should launch the project in your default web browser.
 
-## Windows (MinGW)
+#### Windows (MinGW)
 
 Open the ``Command Prompt`` prompt and navigate to the directory which you downloaded the project. Issue the following command:
 
@@ -172,7 +180,7 @@ mingw32-make
 
 The compiled binary will be located in the ``bin`` directory.
 
-## Windows (NMake)
+#### Windows (NMake)
 
 Open the ``x64 Native Tools Command Prompt for VS 2022`` prompt and navigate to the directory which you downloaded the project. Issue the following command:
 
@@ -188,7 +196,7 @@ nmake
 
 The compiled binary will be located in ``bin`` directory.
 
-## Windows (Visual Studio)
+#### Windows (Visual Studio)
 
 Open the ``Command Prompt`` prompt and navigate to the directory which you downloaded the project. Issue the following command:
 
