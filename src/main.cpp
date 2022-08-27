@@ -69,35 +69,72 @@ public:
 
         Maximum
     } State = Title;
+    GameState PreviousState = State;
+    GameState MomentaryState = State;
+    bool StateJustChanged = false;
 
     Palette::Palette Palette = Palette::Amber;
     uint8_t PaletteIndex = 0;
 
+    float DeltaTime = -1.0f;
+    float Time = 0.0f;
+
+    float StateChangeTime = 0.0f;
+    float TimeSinceStateChange() const
+    {
+        return Time - StateChangeTime;
+    }
+
     bool OnUserCreate() override
     {
-        WaveEngine.InitialiseAudio();
-        Assets::LoadGraphic( "background", "assets/gfx/space.png" );
+        WaveEngine.InitialiseAudio( 44100, 2 );
+        Assets::LoadGraphic( "clouds", "assets/sprites/clouds.png" );
+        Assets::LoadGraphic( "window", "assets/sprites/window.png" );
+        Assets::LoadGraphic( "computer", "assets/sprites/computer.png" );
+        Assets::LoadGraphic( "tv", "assets/sprites/tv.png" );
 
-        Assets::LoadSound( "bg-music", "assets/sounds/TheHaedooLow11250.wav" );
-        Assets::LoadSound( "laser", "assets/sounds/Laser_Shoot11.wav" );
-        Assets::LoadSound( "explosion", "assets/sounds/Explosions1.wav" );
-        Assets::LoadSound( "lose", "assets/sounds/lose9.wav" );
-        Assets::LoadSound( "thruster", "assets/sounds/thruster.wav" );
+        Assets::LoadSound( "music", "assets/sounds/cator_weather_channel.wav" );
+        Assets::LoadSound( "computer_idle", "assets/sounds/computer_idle.wav" );
+        Assets::LoadSound( "computer_prediction", "assets/sounds/computer_prediction.wav" );
+        Assets::LoadSound( "speech", "assets/sounds/speech.wav" );
+        Assets::LoadSound( "reality_sets_in", "assets/sounds/reality_sets_in.wav" );
 
-        BackgroundLayer = CreateLayer();
-        EnableLayer( BackgroundLayer, true );
+        TVLayer = CreateLayer();
+        SetDrawTarget( TVLayer );
+        DrawSprite( 0, 0, Assets::GetSprite( "tv" ) );
 
-        SetDrawTarget( BackgroundLayer );
-        // DrawSprite( 0, 0, Assets::GetSprite( "background" ) );
+        ComputerLayer = CreateLayer();
+        SetDrawTarget( ComputerLayer );
+        DrawSprite( 0, 0, Assets::GetSprite( "computer" ) );
+
+        WindowLayer = CreateLayer();
+        SetDrawTarget( WindowLayer );
+        DrawSprite( 0, 0, Assets::GetSprite( "window" ) );
+
+        CloudLayer = CreateLayer();
+        SetDrawTarget( CloudLayer );
+        DrawSprite( 0, 0, Assets::GetSprite( "clouds" ) );
+
+        // We're no longer using the draw targets.
         SetDrawTarget( nullptr );
-
-        // auto Wave = WaveEngine.PlayWaveform( Assets::GetSound( "bg-music" ), true );
 
         return true;
     }
 
+    olc::sound::PlayingWave BackgroundMusic;
+
+    void DisableLayers()
+    {
+        EnableLayer( CloudLayer, false );
+        EnableLayer( WindowLayer, false );
+        EnableLayer( ComputerLayer, false );
+        EnableLayer( TVLayer, false );
+    }
+
     bool UpdateState()
     {
+        DisableLayers();
+
         switch( State )
         {
         case Title:
@@ -134,24 +171,41 @@ public:
         return false;
     }
 
+    bool AnyKey() const
+    {
+        for( size_t Index = 0; Index < 97; Index++ )
+        {
+            if( GetKey( static_cast<olc::Key>( Index ) ).bReleased )
+                return true;
+        }
+
+        return false;
+    }
+
     bool OnUserUpdate( float DeltaTime ) override
     {
-        Clear( Palette.Darkest );
+        this->DeltaTime = DeltaTime;
+        Time += DeltaTime;
+
+        if( State != MomentaryState )
+        {
+            StateChangeTime = Time;
+            PreviousState = MomentaryState;
+            MomentaryState = State;
+
+            StateJustChanged = true;
+        }
+        else
+        {
+            StateJustChanged = false;
+        }
+
+        Clear( olc::BLANK );
 
         const auto ValidState = UpdateState();
         if( !ValidState )
         {
             DrawString( 0, 0, "Current game state has not been implemented.", Palette.Bright );
-        }
-
-        if( GetKey( olc::ENTER ).bReleased )
-        {
-            State = static_cast<GameState>( State + 1 );
-            if( State >= Maximum )
-            {
-                // Unknown state, return to title screen.
-                State = Title;
-            }
         }
 
         if( GetKey( olc::NP_ADD ).bReleased )
@@ -175,53 +229,166 @@ public:
         return !GetKey( olc::ESCAPE ).bPressed;
     }
 
+    bool HasPlayedBackgroundSoundAtLeastOnce = false;
+    olc::sound::PlayingWave BackgroundSound;
+
+    void PlayBackgroundSound( olc::sound::Wave* Pointer, const bool Loop = true )
+    {
+        if( !Pointer )
+            return;
+
+        if( HasPlayedBackgroundSoundAtLeastOnce )
+        {
+            WaveEngine.StopWaveform( BackgroundSound );
+        }
+
+        BackgroundSound = WaveEngine.PlayWaveform( Pointer, Loop );
+        HasPlayedBackgroundSoundAtLeastOnce = Loop;
+    }
+
     void UpdateTitle()
     {
-        DrawString( 0, 0, "Pour Honor Title Screen", Palette.Bright );
+        Clear( Palette.Darkest );
+        DrawString( 130, 60, "Pour Honor", Palette.Bright );
+        DrawLine( 125, 70, 210, 70, Palette.Dark );
+        DrawString( 90, 100, "Press Enter To Start", Palette.Bright );
+
+        if( GetKey( olc::ENTER ).bReleased )
+        {
+            State = Intro;
+        }
     }
 
     void UpdateIntro()
     {
+        Clear( Palette.Darkest );
         DrawString( 0, 0, "Woah, I'm a weatherman? Neat...", Palette.Bright );
+
+        if( GetKey( olc::SPACE ).bReleased || TimeSinceStateChange() > 5.0f )
+        {
+            State = Observe;
+        }
     }
 
     void UpdateObserve()
     {
         DrawString( 0, 0, "Hmm.. That cloud looks kinda suspicious.", Palette.Bright );
+
+        EnableLayer( CloudLayer, true );
+        SetLayerOffset( CloudLayer, TimeSinceStateChange() * 0.01f, 0.0f );
+
+        EnableLayer( WindowLayer, true );
+
+        DrawString( 0, 170, "You've been staring for " + std::to_string( static_cast<int32_t>( TimeSinceStateChange() ) ) + " seconds.", Palette.Bright );
+
+        if( GetKey( olc::ENTER ).bReleased )
+        {
+            State = Predict;
+        }
+
+        if( !StateJustChanged )
+            return;
+
+        BackgroundMusic = WaveEngine.PlayWaveform( Assets::GetSound( "music" ), true );
     }
 
+    olc::sound::PlayingWave InteractionSound;
     void UpdatePredict()
     {
-        DrawString( 0, 0, "Computer!\nI'd like to report this weather thing I just saw.", Palette.Bright );
+        EnableLayer( ComputerLayer, true );
+        DrawString( 0, 0, "Computer!\nI'd like to report..\nThis weather thing I just saw.", Palette.Bright );
+
+        if( AnyKey() )
+        {
+            InteractionSound = WaveEngine.PlayWaveform( Assets::GetSound( "computer_prediction" ) );
+        }
+
+        if( GetKey( olc::ENTER ).bReleased )
+        {
+            State = Presentation;
+        }
+
+        if( !StateJustChanged )
+            return;
+
+        PlayBackgroundSound( Assets::GetSound( "computer_idle" ) );
     }
 
     void UpdatePresentation()
     {
-        DrawString( 0, 0, "I love seeing my predictions on TV.", Palette.Bright );
+        EnableLayer( TVLayer, true );
+        DrawString( 0, 0, "The predictions are in...", Palette.Bright );
+
+        if( AnyKey() )
+        {
+            InteractionSound = WaveEngine.PlayWaveform( Assets::GetSound( "speech" ) );
+        }
+
+        if( TimeSinceStateChange() > 5.0f )
+        {
+            State = Reality;
+        }
+
+        if( !StateJustChanged )
+            return;
+
+        PlayBackgroundSound( Assets::GetSound( "speech" ) );
     }
 
     void UpdateReality()
     {
-        DrawString( 0, 0, "This looks like what I expected.. Or wait? What's that!?", Palette.Bright );
+        const auto Duration = TimeSinceStateChange();
+        EnableLayer( CloudLayer, true );
+        SetLayerOffset( CloudLayer, Duration * 0.1 - 1.0f, 0.0f );
+        DrawString( 0, 0, "This looks like what I expected..\nOr wait? What's that!?", Palette.Bright );
+
+        if( Duration > 7.0f )
+        {
+            State = Consequences;
+        }
+
+        if( !StateJustChanged )
+            return;
+
+        WaveEngine.StopWaveform( BackgroundMusic );
+        PlayBackgroundSound( Assets::GetSound( "reality_sets_in" ), false );
     }
 
     void UpdateConsequences()
     {
-        DrawString( 0, 0, "Well, well, well... If it isn't the consequences of my actions.", Palette.Bright );
+        DrawString( 0, 0, "Well, well, well...\nIf it isn't the consequences\nof my actions.", Palette.Bright );
+
+        if( TimeSinceStateChange() > 6.0f )
+        {
+            State = Lose;
+        }
     }
 
     void UpdateLose()
     {
-        DrawString( 0, 0, "You're fired, your reputation has taken a nosedive.", Palette.Bright );
+        DrawString( 0, 0, "You're fired...\nYour reputation has taken a nosedive.", Palette.Bright );
+
+        if( AnyKey() || TimeSinceStateChange() > 10.0f )
+        {
+            State = Title;
+        }
     }
 
     void UpdateWin()
     {
-        DrawString( 0, 0, "You're the greatest weatherman that has ever existed, good on you buddy!", Palette.Bright );
+        DrawString( 0, 0, "You're the greatest weatherman\nthat has ever existed.\n\nGood on you buddy!", Palette.Bright );
+
+        if( AnyKey() || TimeSinceStateChange() > 10.0f )
+        {
+            State = Title;
+        }
     }
 
     olc::sound::WaveEngine WaveEngine;
-    int BackgroundLayer = -1;
+    int CloudLayer = -1;
+    int WindowLayer = -1;
+    int ComputerLayer = -1;
+    int TVLayer = -1;
 };
 
 
