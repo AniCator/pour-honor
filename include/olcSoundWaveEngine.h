@@ -319,9 +319,9 @@ namespace olc::sound
 					{
 					case 1:
 					{
-						int8_t s = 0;
-						ifs.read((char*)&s, sizeof(int8_t));
-						*pSample = T(s) / T(std::numeric_limits<int8_t>::max());
+						uint8_t s = 0;
+						ifs.read((char*)&s, sizeof(uint8_t));
+						*pSample = ( T(s) / T(std::numeric_limits<uint8_t>::max()) ) * 2.0 - 1.0;
 					}
 					break;
 
