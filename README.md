@@ -1,5 +1,7 @@
 # Pour Honor
 
+![Pour Honor](PourHonorIcon.png)
+
 You're a weatherman, and your job is to make weather predictions.
 Quick predictions! Your ratings depend on it!
 
