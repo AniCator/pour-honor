@@ -96,29 +96,30 @@ AssetManager::~AssetManager()
 
 olc::Renderable* AssetManager::_getGraphic(const std::string& key)
 {
-    
-    assert(mGraphics.find(key) != mGraphics.end());
+    if( mGraphics.find( key ) == mGraphics.end() )
+        return nullptr;
 
     return mGraphics[key];
 }
 
 olc::sound::Wave* AssetManager::_getSound(const std::string& key)
 {
-    assert(mSounds.find(key) != mSounds.end());
+    if( mSounds.find( key ) == mSounds.end() )
+        return nullptr;
 
     return mSounds[key];
 }
 
 void AssetManager::_loadGraphic(const std::string& key, const std::string& path)
 {
-    // ensure we have actually set a key and path
-    assert(!key.empty() && !path.empty());
+    if( key.empty() || path.empty() )
+        return;
     
     // check if the provided key already exists!
     if(mGraphics.find(key) != mGraphics.end())
     {
         std::cout << "AssetManager: attempted to use an a key <" << key << "> that already existed." << std::endl;
-        exit(EXIT_FAILURE);
+        return; // exit( EXIT_FAILURE );
     }
 
     // ensure the file exists and is readable
@@ -126,7 +127,7 @@ void AssetManager::_loadGraphic(const std::string& key, const std::string& path)
     if(!(std::filesystem::exists(assetPath) && std::filesystem::is_regular_file(assetPath)))
     {
         std::cout << "AssetManager: attempted to load file <" << path << "> which does not exist." << std::endl;
-        exit(EXIT_FAILURE);
+        return; // exit( EXIT_FAILURE );
     }
 
     olc::Renderable* graphic = new olc::Renderable();
@@ -135,7 +136,9 @@ void AssetManager::_loadGraphic(const std::string& key, const std::string& path)
     if(graphic->Sprite() == nullptr || graphic->Decal() == nullptr)
     {
         std::cout << "AssetManager: attempted to load sprite <" << path << ">, and something went wrong, is it a valid PNG file?" << std::endl;
-        exit(EXIT_FAILURE);
+
+        delete graphic;
+        return; // exit( EXIT_FAILURE );
     }
 
     mGraphics[key] = graphic;
@@ -150,7 +153,7 @@ void AssetManager::_loadSound(const std::string& key, const std::string& path)
     if(mSounds.find(key) != mSounds.end())
     {
         std::cout << "AssetManager: attempted to use an a key <" << key << "> that already existed." << std::endl;
-        exit(EXIT_FAILURE);
+        return; // exit( EXIT_FAILURE );
     }
 
     // ensure the file exists and is readable
@@ -158,7 +161,7 @@ void AssetManager::_loadSound(const std::string& key, const std::string& path)
     if(!(std::filesystem::exists(assetPath) && std::filesystem::is_regular_file(assetPath)))
     {
         std::cout << "AssetManager: attempted to load file <" << path << "> which does not exist." << std::endl;
-        exit(EXIT_FAILURE);
+        return; // exit( EXIT_FAILURE );
     }
 
     olc::sound::Wave* sample = new olc::sound::Wave(path);
@@ -166,7 +169,9 @@ void AssetManager::_loadSound(const std::string& key, const std::string& path)
     if(sample == nullptr)
     {
         std::cout << "AssetManager: attempted to load sound <" << path << ">, and something went wrong, is it a valid WAV file?" << std::endl;
-        exit(EXIT_FAILURE);
+
+    	delete sample;
+        return; // exit( EXIT_FAILURE );
     }
     
     mSounds[key] = sample;
