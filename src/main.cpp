@@ -45,6 +45,8 @@ namespace Palette
     } Blue;
 }
 
+constexpr float TickRate = 1.0f / 30.0f;
+
 class PourHonor : public olc::PixelGameEngine
 {
 public:
@@ -73,11 +75,14 @@ public:
     GameState MomentaryState = State;
     bool StateJustChanged = false;
 
+    uint8_t Reputation = 50;
+
     Palette::Palette Palette = Palette::Amber;
     uint8_t PaletteIndex = 0;
 
-    float DeltaTime = -1.0f;
+    float DeltaTime = 1.0f / 60.0f;
     float Time = 0.0f;
+    float TimeSinceLastTick = 0.0f;
 
     float StateChangeTime = 0.0f;
     float TimeSinceStateChange() const
@@ -85,19 +90,68 @@ public:
         return Time - StateChangeTime;
     }
 
+    int WeatherLayer = -1;
+    int WindowLayer = -1;
+    int ComputerLayer = -1;
+    int TVLayer = -1;
+
+    olc::Sprite* WeatherSprite = nullptr;
+
+    struct IntroCard
+    {
+        float Duration = 3.0f;
+        std::string Asset;
+        std::string Text;
+
+        olc::Sprite* Sprite = nullptr;
+    };
+
+    std::vector<IntroCard> Cards = {
+        {4.0f,"slide1", "The life of a weatherman."},
+        {5.0f,"slide2", "The life of a weatherman...\nIs filled with worry."},
+        {2.0f,"slide1", "Developing a keen weather sense."},
+        {4.0f,"slide1", "Developing a keen weather sense..\nIs paramount."},
+        {2.0f,"slide1", "Wake up.."},
+        {4.0f,"slide1", "Wake up..\nIt's time to gaze."},
+        {4.0f,"clouds", "Watch the clouds."},
+        {4.0f,"computer", "Then press Enter\nto submit your prediction."},
+        {2.0f,"slide1", "Take your time."},
+        {4.0f,"slide1", "Take your time..\nBut not too much time."},
+        {0.2f,"slide1", "Your "},
+        {0.75f,"slide1", "Your reputation"},
+        {0.25f,"slide1", "Your reputation is"},
+        {0.25f,"slide1", "Your reputation is at"},
+        {4.0f,"slide1", "Your reputation is at stake."}
+    };
+
     bool OnUserCreate() override
     {
-        WaveEngine.InitialiseAudio( 44100, 2 );
-        Assets::LoadGraphic( "clouds", "assets/sprites/clouds.png" );
-        Assets::LoadGraphic( "window", "assets/sprites/window.png" );
-        Assets::LoadGraphic( "computer", "assets/sprites/computer.png" );
-        Assets::LoadGraphic( "tv", "assets/sprites/tv.png" );
+        WaveEngine.InitialiseAudio( 44100, 2, 8, 2048 );
 
+        // Load sounds.
         Assets::LoadSound( "music", "assets/sounds/cator_weather_channel.wav" );
+        Assets::LoadSound( "music_intro", "assets/sounds/cator_weather_intro.wav" );
         Assets::LoadSound( "computer_idle", "assets/sounds/computer_idle.wav" );
         Assets::LoadSound( "computer_prediction", "assets/sounds/computer_prediction.wav" );
         Assets::LoadSound( "speech", "assets/sounds/speech.wav" );
         Assets::LoadSound( "reality_sets_in", "assets/sounds/reality_sets_in.wav" );
+
+        // Load graphics.
+        Assets::LoadGraphic( "clouds", "assets/sprites/clouds.png" );
+        Assets::LoadGraphic( "weather", "assets/sprites/weather.png" );
+        Assets::LoadGraphic( "window", "assets/sprites/window.png" );
+        Assets::LoadGraphic( "computer", "assets/sprites/computer.png" );
+        Assets::LoadGraphic( "tv", "assets/sprites/tv.png" );
+
+        // Load and configure the intro sprites.
+        for( auto& Card : Cards )
+        {
+            Assets::LoadGraphic( Card.Asset, "assets/sprites/" + Card.Asset + ".png" );
+            Card.Sprite = Assets::GetSprite( Card.Asset );
+        }
+
+        // Configure remaining sprites and layers.
+        WeatherSprite = Assets::GetSprite( "weather" );
 
         TVLayer = CreateLayer();
         SetDrawTarget( TVLayer );
@@ -111,9 +165,7 @@ public:
         SetDrawTarget( WindowLayer );
         DrawSprite( 0, 0, Assets::GetSprite( "window" ) );
 
-        CloudLayer = CreateLayer();
-        SetDrawTarget( CloudLayer );
-        DrawSprite( 0, 0, Assets::GetSprite( "clouds" ) );
+        WeatherLayer = CreateLayer();
 
         // We're no longer using the draw targets.
         SetDrawTarget( nullptr );
@@ -125,7 +177,7 @@ public:
 
     void DisableLayers()
     {
-        EnableLayer( CloudLayer, false );
+        EnableLayer( WeatherLayer, false );
         EnableLayer( WindowLayer, false );
         EnableLayer( ComputerLayer, false );
         EnableLayer( TVLayer, false );
@@ -186,6 +238,12 @@ public:
     {
         this->DeltaTime = DeltaTime;
         Time += DeltaTime;
+
+        /*TimeSinceLastTick += DeltaTime;
+        if( TimeSinceLastTick < TickRate )
+            return !GetKey( olc::ESCAPE ).bPressed;
+
+        TimeSinceLastTick = 0.0f;*/
 
         if( State != MomentaryState )
         {
@@ -259,24 +317,86 @@ public:
         }
     }
 
+    size_t CardIndex = 0;
+    float CardStartTime = -1.0f;
+
+    void RenderCard( const IntroCard& Card )
+    {
+        if( Card.Sprite )
+        {
+            DrawSprite( 0, 0, Card.Sprite );
+        }
+
+        if( !Card.Text.empty() )
+        {
+            auto RectangleColor = Palette.Darkest;
+            RectangleColor.a = 200;
+
+            SetPixelMode( olc::Pixel::ALPHA );
+            FillRect( 0, 149, 320, 31, RectangleColor );
+            SetPixelMode( olc::Pixel::NORMAL );
+            DrawLine( 0, 148, 320, 148, Palette.Bright );
+            DrawString( 5, 150, Card.Text, Palette.Neutral );
+        }
+    }
+
     void UpdateIntro()
     {
-        Clear( Palette.Darkest );
-        DrawString( 0, 0, "Woah, I'm a weatherman? Neat...", Palette.Bright );
+        if( StateJustChanged )
+        {
+            CardIndex = 0;
+            CardStartTime = TimeSinceStateChange();
 
-        if( GetKey( olc::SPACE ).bReleased || TimeSinceStateChange() > 5.0f )
+            BackgroundMusic = WaveEngine.PlayWaveform( Assets::GetSound( "music_intro" ), true );
+        }
+
+        // Check if we can still be in this state.
+        if( Cards.empty() || CardIndex >= Cards.size() )
         {
             State = Observe;
+            return;
         }
+
+        Clear( Palette.Darkest );
+
+        const auto& Card = Cards[CardIndex];
+        RenderCard( Card );
+
+        const auto CardDeltaTime = TimeSinceStateChange() - CardStartTime;
+        const auto WantsSkip = ( CardIndex > 0 && GetKey( olc::ENTER ).bReleased ) || GetKey( olc::SPACE ).bReleased;
+        if( WantsSkip || CardDeltaTime > Card.Duration )
+        {
+            CardIndex++;
+            CardStartTime = TimeSinceStateChange();
+        }
+    }
+
+    void RenderWeatherLayer()
+    {
+        SetDrawTarget( WeatherLayer );
+        if( WeatherSprite )
+        {
+            // Clear to sky background.
+            Clear( olc::Pixel( 172, 115, 0 ) );
+            const auto WrapAround = WeatherSprite->width - 320;
+            const auto Offset = ( static_cast<int32_t>( TimeSinceStateChange() * -10.0f ) + 320 ) % WrapAround;
+            DrawSprite( Offset, 0, WeatherSprite );
+        }
+        SetDrawTarget( nullptr );
     }
 
     void UpdateObserve()
     {
-        DrawString( 0, 0, "Hmm.. That cloud looks kinda suspicious.", Palette.Bright );
+        DrawString( 0, 0, "Your reputation: " + std::to_string( Reputation ), Palette.Bright );
 
-        EnableLayer( CloudLayer, true );
-        SetLayerOffset( CloudLayer, TimeSinceStateChange() * 0.01f, 0.0f );
+        if( TimeSinceStateChange() < 3.0f )
+        {
+            DrawString( 0, 10, "Hmm.. That cloud looks kinda suspicious.", Palette.Bright );
+        }
 
+        RenderWeatherLayer();
+
+        EnableLayer( WeatherLayer, true );
         EnableLayer( WindowLayer, true );
 
         DrawString( 0, 170, "You've been staring for " + std::to_string( static_cast<int32_t>( TimeSinceStateChange() ) ) + " seconds.", Palette.Bright );
@@ -289,6 +409,7 @@ public:
         if( !StateJustChanged )
             return;
 
+        WaveEngine.StopWaveform( BackgroundMusic );
         BackgroundMusic = WaveEngine.PlayWaveform( Assets::GetSound( "music" ), true );
     }
 
@@ -338,8 +459,8 @@ public:
     void UpdateReality()
     {
         const auto Duration = TimeSinceStateChange();
-        EnableLayer( CloudLayer, true );
-        SetLayerOffset( CloudLayer, Duration * 0.1 - 1.0f, 0.0f );
+        EnableLayer( WeatherLayer, true );
+        SetLayerOffset( WeatherLayer, Duration * 0.1 - 1.0f, 0.0f );
         DrawString( 0, 0, "This looks like what I expected..\nOr wait? What's that!?", Palette.Bright );
 
         if( Duration > 7.0f )
@@ -385,17 +506,13 @@ public:
     }
 
     olc::sound::WaveEngine WaveEngine;
-    int CloudLayer = -1;
-    int WindowLayer = -1;
-    int ComputerLayer = -1;
-    int TVLayer = -1;
 };
 
 
 int main()
 {
     PourHonor Game;
-    if( Game.Construct( 320, 180, 2, 2 ) )
+    if( Game.Construct( 320, 180, 2, 2, false, true ) )
         Game.Start();
 
     return 0;
