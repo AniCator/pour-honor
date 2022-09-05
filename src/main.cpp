@@ -406,6 +406,9 @@ public:
             CardIndex = 0;
             CardStartTime = TimeSinceStateChange();
 
+            // Reset your reputation.
+            Reputation = 50;
+
 #ifndef DisableAudio
             BackgroundMusic = WaveEngine.PlayWaveform( Assets::GetSound( "music_intro" ), true );
 #endif
