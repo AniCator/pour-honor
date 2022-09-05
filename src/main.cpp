@@ -268,10 +268,9 @@ public:
             UpdateWin();
             return true;
         case Maximum: break;
-        default:;
+        default:
+            return false;
         }
-
-        return false;
     }
 
     bool AnyKey() const
@@ -703,7 +702,7 @@ public:
         if( !StateJustChanged )
             return;
 
-        uint16_t NewReputation = Reputation;
+        int16_t NewReputation = Reputation;
         if( CorrectPrediction )
         {
             NewReputation += 10;
